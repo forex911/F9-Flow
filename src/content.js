@@ -198,7 +198,7 @@
       for (const sel of ['article', 'section', '[class*="message"]', '[class*="turn"]', '[class*="conversation"]', '[class*="bubble"]', '[class*="chat"]']) {
         const found = qsa(sel).filter(el => {
           const text = (el.innerText || '').trim();
-          return text.length > 10 && text.length < 50000;
+          return (text.length > 10 && text.length < 50000) || el.querySelector('img');
         });
         if (found.length >= 2) { turns = found; break; }
       }
@@ -230,8 +230,14 @@
       const isUser = matchesAny(turn, cfg.userMatch) || turn.getAttribute('data-message-author-role') === 'user';
       const isAI   = !isUser && (matchesAny(turn, cfg.aiMatch) || turn.getAttribute('data-message-author-role') === 'assistant');
 
-      const text = extractText(turn);
-      if (text.length < 2) return;
+      let text = extractText(turn);
+      if (text.length < 2) {
+        if (turn.querySelector('img')) {
+          text = "[Image Attachment]";
+        } else {
+          return;
+        }
+      }
 
       const role = isUser ? 'user' : isAI ? 'assistant' : null;
       if (role !== 'user') return; // STRICTLY drop AI messages
@@ -570,8 +576,13 @@
     const cur = location.pathname + location.search;
     if (cur !== lastPath) {
       lastPath = cur;
-      window.__aiNavInjected = false;
-      setTimeout(() => { window.__aiNavInjected = true; inject(); }, 1000);
+      setTimeout(() => { 
+        if (!document.getElementById('ain-panel')) {
+          inject(); 
+        } else if (isOpen) {
+          refresh(); 
+        }
+      }, 1000);
     }
   }).observe(document.documentElement, { childList:true, subtree:true });
 
