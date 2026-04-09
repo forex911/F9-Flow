@@ -1,68 +1,55 @@
-# AI Chat Navigator v2.0
+<div align="center">
+  <img src="icons/icon128.png" width="80" height="80" alt="F9 Flow Icon"/>
+  <h1>F9 Flow</h1>
+  <p><strong>A beautifully uncompromising, minimalist command layer for AI platforms.</strong></p>
+</div>
 
-A universal conversation navigator sidebar for all major AI chat platforms — now with a sleek dark UI, token counter, keyboard shortcut customizer, and activate/deactivate toggle.
+<br/>
 
-## What's New in v2.0
-- **Dark monospace UI** — ChatSight-inspired design with per-platform accent colors
-- **Token estimator** — Tracks total, user, and AI token counts live
-- **Activate / Deactivate toggle** — Pause the navigator without closing it
-- **Keyboard shortcut** — Default `Ctrl+Shift+M`, fully customizable in the sidebar
-- **Prev / Next navigation** — Step through messages sequentially
-- **Persistent state** — Remembers if you left the sidebar open, your active state, and your shortcut
+**F9 Flow** (formerly AI Navigator) is an ultra-fast, universally compatible Chrome extension that injects a premium timeline and navigation sidebar into any major AI chat platform (ChatGPT, Claude, Perplexity, etc.).
 
-## Supported Platforms
-- **ChatGPT** (chatgpt.com)
-- **Claude** (claude.ai)
-- **Perplexity** (perplexity.ai)
-- **Gemini** (gemini.google.com)
-- **Grok** (grok.com / x.com)
-- **Microsoft Copilot** (copilot.microsoft.com)
-- **Mistral** (chat.mistral.ai)
-- **Poe** (poe.com)
-- **HuggingFace Chat** (huggingface.co)
-- **Character.AI** (character.ai)
-- **You.com** (you.com)
-- **Phind** (phind.com)
+By aggressively stripping away the noise of massive AI responses, F9 Flow distills your long, complex conversations down to a sleek, clickable timeline of just **your prompts**. Press down a single hotkey, jump backward instantly, and regain complete control of your context window.
 
-## Features
-- Jump to any message instantly with highlight animation
-- Search all messages with inline highlight
-- Filter by You / AI messages
-- Token estimate per message and total (via char/4 approximation)
-- Activate/Deactivate navigator without closing
-- Customizable keyboard shortcut
-- Prev / Next message step navigation
-- Auto-updates as conversation grows
-- Each platform has its own accent color
-- Dark mode by default
+## ✨ Product Showcase
+
+### 🎛 The Unobtrusive Command Layer
+The F9 Flow architecture stays out of your way until you need it. By default, tapping `F9` seamlessly slides in a minimalist, resizable dark-themed sidebar over the host page, giving you a top-level map of your entire conversation architecture. 
+
+### ⚡ Lightning Fast Navigation
+No more endless scrolling through walls of AI-generated text. The interface actively watches the DOM to extract, sanitize, and list every interaction you've had. Click on any prompt timeline dot to instantly smooth-scroll to that exact block of context in the chat.
+
+### 🎨 Native Platform Aesthetics
+F9 Flow seamlessly adapts its active states to match the primary branding accent color of the specific AI engine you are currently using — whether it's ChatGPT's teal, Claude's orange, or Gemini's blue.
+
+### ⌨️ Fully Customizable Hotkeys
+Your workflow is yours. With the cleanly designed extension popup, you can easily map the F9 Flow activation trigger to absolutely any shortcut combination (e.g. `Ctrl + Shift + A`, `Alt + M`).
 
 ---
 
-## Installation
+## 🛠 Supported Platforms
+The scraper intelligently maps the internal structures of over a dozen standard AI platforms, including:
+- **ChatGPT** (`chatgpt.com`, `chat.openai.com`)
+- **Claude** (`claude.ai`)
+- **Perplexity** (`perplexity.ai`)
+- **Gemini** (`gemini.google.com`)
+- **Grok** (`grok.com`, `x.com`)
+- **Copilot** (`copilot.microsoft.com`)
+- **Mistral** (`chat.mistral.ai`)
+- **HuggingFace** (`huggingface.co`)
+- **Poe** (`poe.com`)
 
-### Chrome / Edge / Brave / Opera (Manifest V3)
-1. Unzip this folder
-2. Go to `chrome://extensions` (or `edge://extensions`)
-3. Enable **Developer mode** (top-right toggle)
-4. Click **Load unpacked**
-5. Select the `ai-navigator` folder
-6. Visit any supported AI platform
+## ⚙️ How to Install
+Since the project is built in highly-optimized Vanilla JS and CSS, it requires zero build steps to deploy locally:
+1. Clone this repository or download the `.zip`.
+2. Navigate to `chrome://extensions/` in your Chromium-based browser.
+3. Enable **Developer Mode** in the top right corner.
+4. Click **Load unpacked** and select the F9 Flow project directory.
+5. Open an AI chat interface and press `F9` (or map your own hotkey via the extension popup).
 
-### Firefox (Manifest V2)
-1. Rename `manifest_firefox.json` → `manifest.json` (replace the existing one)
-2. Go to `about:debugging#/runtime/this-firefox`
-3. Click **Load Temporary Add-on**
-4. Select the `manifest.json` file inside the `ai-navigator` folder
+## 💻 Tech Stack
+- **JavaScript (Vanilla)** — Utilizes deep `MutationObserver` architecture to silently track DOM reflows and strictly filters out AI responses via Regex.
+- **CSS3** — Custom, platform-agnostic styling heavily utilizing `!important` to sandbox the components away from overreaching AI platform stylesheets.
+- **Manifest V3** — Modern Web Extension standards compliance.
 
-> For permanent Firefox install, the extension needs to be signed via AMO (addons.mozilla.org).
-
----
-
-## Keyboard Shortcut
-Default: `Ctrl + Shift + M`  
-To change: Open the Navigator sidebar → click **Change** next to the shortcut → press your desired key combo.
-
----
-
-## Updating
-After making any code changes, go to `chrome://extensions` and click the **refresh icon** on the extension card, then reload the AI platform tab.
+## 🤝 Contributing
+Contributions, issues, and feature requests are always welcome! Feel free to check the [issues page](../../issues). If you like the project, don't forget to leave a ⭐.
