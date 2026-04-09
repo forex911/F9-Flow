@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>F9 Flow</title>
+  <meta name="description" content="AI Chat Navigator — Control panel for managing conversation navigation across AI platforms.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="popup" id="popup">
+
+    <!-- Header -->
+    <div style="padding: 20px 20px 10px;">
+      <div style="font-size: 18px; font-weight: 600; color: #fff; letter-spacing: -0.3px;">F9 Flow</div>
+      <div style="font-size: 13px; color: #888; margin-top: 2px;">AI Command Layer</div>
+    </div>
+
+    <!-- Main Action -->
+    <div style="padding: 10px 20px 20px;">
+      <div style="font-size: 13px; color: #b3b3b3; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+        <span style="color: #00d28f; font-size: 10px;">●</span> Press F9 to Activate
+      </div>
+      <button class="action-btn active" id="action-btn" type="button" style="width: 100%; justify-content: center;">
+        <span id="action-label" style="font-weight: 500;">Disable F9 Flow</span>
+      </button>
+    </div>
+
+    <div style="height: 1px; background: #333; margin: 0 20px;"></div>
+
+    <!-- Trigger Key -->
+    <div style="padding: 16px 20px; display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <div style="font-size: 11px; font-weight: 600; color: #888; letter-spacing: 0.5px; margin-bottom: 4px;">TRIGGER KEY</div>
+        <div id="shortcut-display" style="color: #00d28f; font-size: 14px; font-weight: 600; background: rgba(0,210,143,0.1); padding: 4px 10px; border-radius: 8px; display: inline-block;">F9</div>
+      </div>
+      <button id="change-shortcut-btn" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; transition: background 0.2s;">Change</button>
+    </div>
+
+    <div style="height: 1px; background: #333; margin: 0 20px;"></div>
+
+    <!-- System Info -->
+    <div style="padding: 16px 20px;">
+      <div style="font-size: 11px; font-weight: 600; color: #888; letter-spacing: 0.5px; margin-bottom: 4px;">SYSTEM INFO</div>
+      <div style="color: #888; font-size: 13px;">Token estimates may vary</div>
+    </div>
+
+    <div style="height: 1px; background: #333; margin: 0 20px;"></div>
+
+    <!-- Footer -->
+    <div style="padding: 16px 20px;">
+      <a href="https://github.com/" target="_blank" style="text-decoration: none; color: #fff; font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 8px;">
+        ⭐ Star on GitHub
+      </a>
+    </div>
+
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

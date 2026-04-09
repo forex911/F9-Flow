@@ -1,0 +1,69 @@
+{
+  "manifest_version": 2,
+  "name": "F9 Flow",
+  "version": "1.0.0",
+  "description": "AI Command Layer — Navigate conversations on ChatGPT, Claude, Perplexity, Gemini, Grok, Copilot, Mistral, and more.",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "https://chatgpt.com/*",
+    "https://chat.openai.com/*",
+    "https://claude.ai/*",
+    "https://perplexity.ai/*",
+    "https://www.perplexity.ai/*",
+    "https://gemini.google.com/*",
+    "https://grok.com/*",
+    "https://x.com/*",
+    "https://copilot.microsoft.com/*",
+    "https://chat.mistral.ai/*",
+    "https://huggingface.co/*",
+    "https://poe.com/*",
+    "https://character.ai/*",
+    "https://you.com/*",
+    "https://phind.com/*",
+    "https://www.phind.com/*"
+  ],
+  "browser_action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://claude.ai/*",
+        "https://perplexity.ai/*",
+        "https://www.perplexity.ai/*",
+        "https://gemini.google.com/*",
+        "https://grok.com/*",
+        "https://x.com/*",
+        "https://copilot.microsoft.com/*",
+        "https://chat.mistral.ai/*",
+        "https://huggingface.co/*",
+        "https://poe.com/*",
+        "https://character.ai/*",
+        "https://you.com/*",
+        "https://phind.com/*",
+        "https://www.phind.com/*"
+      ],
+      "js": ["src/content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "ai-chat-navigator@extension",
+      "strict_min_version": "91.0"
+    }
+  }
+}
