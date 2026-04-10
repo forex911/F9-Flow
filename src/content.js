@@ -272,9 +272,9 @@
     s.textContent = /*css*/`
       #ain-panel {
         position: fixed !important;
-        top: 72px !important;
+        top: 100px !important;
         right: 16px !important;
-        width: 200px !important;
+        width: 180px !important;
         height: 520px; /* !important removed so native bottom-right resize can write inline heights */
         min-width: 180px !important;
         min-height: 200px !important;
