@@ -20,7 +20,11 @@
     "https://character.ai/*",
     "https://you.com/*",
     "https://phind.com/*",
-    "https://www.phind.com/*"
+    "https://www.phind.com/*",
+    "https://chat.deepseek.com/*",
+    "https://www.deepseek.com/*",
+    "https://manus.im/*",
+    "https://app.manus.im/*"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -48,7 +52,11 @@
         "https://character.ai/*",
         "https://you.com/*",
         "https://phind.com/*",
-        "https://www.phind.com/*"
+        "https://www.phind.com/*",
+        "https://chat.deepseek.com/*",
+        "https://www.deepseek.com/*",
+        "https://manus.im/*",
+        "https://app.manus.im/*"
       ],
       "js": ["src/content.js"],
       "run_at": "document_idle"

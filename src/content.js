@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════════════
- * AI Navigator — Content Script  v2.2
+ * AI Navigator — Content Script  v2.3
  *
  * Minimal UI (F9 toggle) — pure timeline with prompts and AI responses.
  * ═══════════════════════════════════════════════════════════════════════════════
@@ -30,6 +30,8 @@
     'character.ai':'Character.AI',
     'you.com':'You.com',
     'phind.com':'Phind','www.phind.com':'Phind',
+    'chat.deepseek.com':'DeepSeek','deepseek.com':'DeepSeek',
+    'manus.im':'Manus','app.manus.im':'Manus',
   };
 
   const SCRAPERS = {
@@ -82,10 +84,10 @@
       textSel:    ['[class*="prose"]', 'p', 'div'],
     },
     Poe: {
-      containers: ['[class*="Message_row"]', '[class*="ChatMessage"]'],
-      userMatch:  ['[class*="human"]', '[class*="userText"]'],
-      aiMatch:    ['[class*="bot"]', '[class*="botText"]'],
-      textSel:    ['[class*="Markdown"]', 'p', 'div'],
+      containers: ['[class*="Message_row"]', '[class*="ChatMessage"]', '[class*="message"]', 'section', 'article', '.chat-message'],
+      userMatch:  ['[class*="human"]', '[class*="userText"]', '[class*="Message_human"]', '[data-chat-message-type="human"]', '[class*="user"]'],
+      aiMatch:    ['[class*="bot"]', '[class*="botText"]', '[class*="Message_bot"]', '[data-chat-message-type="bot"]', '[class*="assistant"]', '[class*="Markdown"]'],
+      textSel:    ['[class*="Markdown"]', '[class*="prose"]', 'p', 'div'],
     },
     'Character.AI': {
       containers: ['[class*="msg"]', '[class*="message"]'],
@@ -105,10 +107,23 @@
       aiMatch:    ['[class*="assistant"]', '[class*="answer"]'],
       textSel:    ['[class*="prose"]', 'p', 'div'],
     },
+    DeepSeek: {
+      containers: ['[class*="message"]', '[class*="chat-block"]', 'article', 'div[class^="f8"]', 'div[class^="f9"]', 'div[class^="dad"]'],
+      userMatch:  ['[class*="user"]', '[class*="User"]', '[class*="human"]'],
+      aiMatch:    ['[class*="assistant"]', '[class*="Assistant"]', '[class*="bot"]', '.ds-markdown', '.markdown'],
+      textSel:    ['.prose', '[class*="prose"]', '.md-code-block', '.ds-markdown', 'p', 'div'],
+    },
+    Manus: {
+      containers: ['.simplebar-content-wrapper > div > div', '[role="region"][aria-label*="scroll"] > div > div', '[class*="message"]', '[class*="Message"]', '.chat-item'],
+      userMatch:  ['[class*="justify-end"]', '[class*="user"]', '[class*="User"]', '[class*="human"]'],
+      aiMatch:    ['[class*="justify-start"]', '[class*="assistant"]', '[class*="bot"]', '[class*="agent"]', '.markdown-body'],
+      textSel:    ['.tiptap', '[class*="prose"]', '.markdown-body', 'p', 'span', 'div'],
+    },
   };
 
   const host     = location.hostname.replace(/^www\./, '');
   const platform = PLATFORMS[host] || PLATFORMS[location.hostname] || 'AI Chat';
+
   const cfg      = SCRAPERS[platform] || SCRAPERS.ChatGPT;
 
   const COLORS = {
@@ -116,6 +131,7 @@
     Gemini:'#4285f4',Grok:'#7d7d7db2',Copilot:'#0091ff70',
     Mistral:'#f7501f',HuggingFace:'#ff9a00',Poe:'#6c5ce7',
     'Character.AI':'#888','You.com':'#7c3aed',Phind:'#0ea5e9',
+    DeepSeek:'#4d83ff',Manus:'#6366f1',
   };
   const accent = COLORS[platform] || '#4b5563';
 
@@ -166,6 +182,175 @@
 
   function scrapeMessages() {
     const messages = [];
+
+    // ─── PERPLEXITY EXCLUSIVE: Isolate from sidebar garbage ───
+    // Perplexity utility classes often falsely match the sidebar ('History', 'Discover').
+    // We isolate extraction to the .scrollable-container and target exact user bubbles.
+    if (platform === 'Perplexity') {
+       const chatContainer = document.querySelector('.scrollable-container') || document.querySelector('main');
+       if (chatContainer) {
+           const seenTexts = new Set();
+
+           // Primary anchor: 'Edit query' buttons reliably target user prompts
+           const editBtns = chatContainer.querySelectorAll('[aria-label="Edit query"], button:has(svg)');
+           const userBlocks = [];
+           
+           editBtns.forEach(btn => {
+               if (btn.getAttribute('aria-label') === 'Edit query') {
+                   const block = btn.closest('.group') || btn.parentElement?.parentElement?.parentElement;
+                   if (block && !block.closest('#ain-panel')) userBlocks.push(block);
+               }
+           });
+
+           // Fallback: Check right-aligned bubble styling (shared links don't have edit buttons)
+           if (userBlocks.length === 0) {
+               chatContainer.querySelectorAll('div, span, p').forEach(el => {
+                   if (el.closest('#ain-panel') || el.children.length > 5) return;
+                   const cls = (el.className || '').toString();
+                   if (cls.includes('justify-end') || cls.includes('ml-auto') || cls.includes('bg-offsetPlus')) {
+                       userBlocks.push(el);
+                   }
+               });
+           }
+
+           userBlocks.forEach(block => {
+               let text = (block.innerText || '').trim();
+               // Strip out ui strings that leak in
+               text = text.replace(/Edit query/gi, '').replace(/Copilot/gi, '').trim();
+               if (text.length < 2 || seenTexts.has(text)) return;
+               
+               // Avoid sidebar elements just in case they slipped through
+               if (['History', 'Discover', 'New thread', 'Sign up'].includes(text)) return;
+
+               seenTexts.add(text);
+               messages.push({
+                   index: messages.length,
+                   role: 'user',
+                   fullText: text,
+                   element: block,
+                   tokens: Math.ceil(text.length / 4)
+               });
+           });
+
+           if (messages.length > 0) return messages;
+       }
+    }
+
+    // ─── DEEPSEEK EXCLUSIVE: Scrape Native Navigator Directly ───
+    // DeepSeek has a native outline navigator on the right side that lists all user prompts.
+    // We reverse-engineer it: find the best matching container and extract prompt text from it.
+    if (platform === 'DeepSeek') {
+       let bestNav = null;
+       let bestScore = 0;
+
+       qsa('div').forEach(el => {
+           if (el.closest('#ain-panel') || el.id === 'ain-panel') return;
+           if (el.querySelector('.ds-markdown, .ds-markdown--block, .markdown, code, pre')) return;
+           if (el.children.length < 3) return;
+
+           const rect = el.getBoundingClientRect();
+           if (rect.left <= window.innerWidth * 0.5) return;
+           if (rect.width > 350) return;
+           if (rect.top < 60) return;
+           if (rect.height < 30) return;
+
+           const children = Array.from(el.children);
+           const textContents = children.map(child => (child.innerText || '').trim());
+           const validCount = textContents.filter(t => t.length > 1 && t.length < 200).length;
+
+           if (validCount >= 3 && validCount / children.length >= 0.5) {
+               if (validCount > bestScore) {
+                   bestScore = validCount;
+                   bestNav = el;
+               }
+           }
+       });
+
+       if (bestNav) {
+           Array.from(bestNav.children).forEach((child) => {
+               let text = (child.innerText || '').trim();
+               if (!text || text.length < 1) return;
+               text = text.replace(/\s*[-–—]+\s*$/, '').trim();
+               if (text.length < 1) return;
+               messages.push({
+                   index: messages.length,
+                   role: 'user',
+                   fullText: text,
+                   element: child,
+                   tokens: Math.ceil(text.length / 4)
+               });
+           });
+
+           if (messages.length > 0) return messages;
+       }
+    }
+
+    // ─── MANUS EXCLUSIVE: Walk simplebar-content-wrapper for user prompts ───
+    // Manus uses Tailwind utility classes with no stable message/user/assistant selectors.
+    // User messages are right-aligned bubbles; AI messages start with "manus" branding.
+    if (platform === 'Manus') {
+       let chatContainer = document.querySelector('.simplebar-content-wrapper');
+       if (!chatContainer) chatContainer = document.querySelector('[role="region"][aria-label*="scroll"]');
+       if (!chatContainer) chatContainer = document.querySelector('[class*="simplebar"]');
+
+       if (chatContainer) {
+           const allBlocks = chatContainer.querySelectorAll('div, span, p');
+           const seenTexts = new Set();
+
+           allBlocks.forEach(el => {
+               if (el.closest('#ain-panel')) return;
+               if (el.children.length > 5) return;
+
+               const text = (el.innerText || '').trim();
+               if (text.length < 2 || text.length > 500) return;
+               if (seenTexts.has(text)) return;
+
+               // Method 1: Tailwind class check for right-alignment
+               const chain = [el, el.parentElement, el.parentElement?.parentElement, el.parentElement?.parentElement?.parentElement].filter(Boolean);
+               let isRightAligned = false;
+
+               for (const node of chain) {
+                   const cls = (node.className || '').toString();
+                   if (cls.includes('justify-end') || cls.includes('items-end') || cls.includes('text-right') || cls.includes('ml-auto') || cls.includes('self-end')) {
+                       isRightAligned = true;
+                       break;
+                   }
+               }
+
+               // Method 2: Positional check — user bubbles are in the right portion
+               if (!isRightAligned) {
+                   const rect = el.getBoundingClientRect();
+                   const containerRect = chatContainer.getBoundingClientRect();
+                   const containerCenter = containerRect.left + containerRect.width / 2;
+                   if (rect.right > containerRect.right - 80 && rect.left > containerCenter && rect.width < containerRect.width * 0.7 && rect.height > 10 && rect.height < 200) {
+                       isRightAligned = true;
+                   }
+               }
+
+               if (!isRightAligned) return;
+
+               // Filter out non-message elements
+               if (text.match(/^\d{1,2}:\d{2}$/) || text.length < 3) return;
+               if (el.querySelector('button, input, svg')) return;
+               const parentText = (el.parentElement?.innerText || '').toLowerCase();
+               if (parentText.startsWith('manus')) return;
+
+               seenTexts.add(text);
+               messages.push({
+                   index: messages.length,
+                   role: 'user',
+                   fullText: text,
+                   element: el,
+                   tokens: Math.ceil(text.length / 4)
+               });
+           });
+
+           if (messages.length > 0) return messages;
+       }
+    }
+
+    // ─── Normal scraping logic ───
+
     let turns = [];
 
     // Step 1: Find message containers
@@ -190,6 +375,21 @@
           const container = el.closest('article, section, [class*="message"], [class*="Message"], [class*="turn"], .group, [class*="conversation"]') || el.parentElement || el;
           if (!seen.has(container)) { seen.add(container); turns.push(container); }
         });
+      });
+    }
+
+    // Step 2.5: Deep inference — infer siblings around known AI messages
+    if (turns.length > 0 && turns.length < 200) {
+      const knownAIs = turns.filter(t => matchesAny(t, cfg.aiMatch));
+      knownAIs.forEach(aiElem => {
+        const parent = aiElem.parentElement;
+        if (parent) {
+          Array.from(parent.children).forEach(child => {
+            if (!turns.includes(child) && (child.innerText || '').trim().length > 2) {
+              turns.push(child);
+            }
+          });
+        }
       });
     }
 
@@ -227,10 +427,19 @@
     deduped.forEach((turn) => {
       if (turn.closest('#ain-panel') || turn.id === 'ain-panel') return;
 
-      const isUser = matchesAny(turn, cfg.userMatch) || turn.getAttribute('data-message-author-role') === 'user';
-      const isAI   = !isUser && (matchesAny(turn, cfg.aiMatch) || turn.getAttribute('data-message-author-role') === 'assistant');
+      let isUser = matchesAny(turn, cfg.userMatch) || turn.getAttribute('data-message-author-role') === 'user';
+      let isAI   = matchesAny(turn, cfg.aiMatch) || turn.getAttribute('data-message-author-role') === 'assistant';
+
+      if (!isUser && !isAI) {
+        if (matchesAny(turn, ['.markdown', '.ds-markdown', '.prose', '.markdown-body', 'code', 'pre', '[class*="bot"]', '[class*="Assistant"]', '[class*="assistant"]', '[class*="agent"]', '[class*="Markdown"]'])) {
+          isAI = true;
+        } else {
+          isUser = true;
+        }
+      }
 
       let text = extractText(turn);
+
       if (text.length < 2) {
         if (turn.querySelector('img')) {
           text = "[Image Attachment]";
@@ -275,7 +484,7 @@
         top: 100px !important;
         right: 16px !important;
         width: 180px !important;
-        height: 520px; /* !important removed so native bottom-right resize can write inline heights */
+        height: 520px;
         min-width: 180px !important;
         min-height: 200px !important;
         max-height: calc(100vh - 90px) !important;
@@ -299,7 +508,6 @@
       #ain-panel * { box-sizing: border-box !important; }
       #ain-panel.ain-open { transform: translateX(0) !important; opacity: 1 !important; }
 
-      /* Stats Header */
       .ain-hdr-stats {
         padding: 20px 24px 16px !important;
         font-size: 13px !important;
@@ -308,7 +516,6 @@
         flex-shrink: 0 !important;
       }
 
-      /* Scroll Area */
       .ain-sc {
         flex: 1 !important;
         overflow-y: auto !important;
@@ -322,7 +529,6 @@
       .ain-sc::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1) !important; border-radius: 999px !important; }
       .ain-sc::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2) !important; }
 
-      /* Timeline */
       .ain-ls {
         position: relative !important;
         padding-left: 20px !important;
@@ -339,7 +545,6 @@
       }
       .ain-ls:has(.ain-em)::before { display: none !important; }
 
-      /* Items */
       .ain-it {
         position: relative !important;
         margin-bottom: 24px !important;
@@ -349,11 +554,8 @@
       }
       .ain-it:hover { opacity: 1 !important; }
       .ain-it.ain-active { opacity: 1 !important; }
-      
-      /* Active state dot visual */
       .ain-it.ain-active .ain-dot { transform: scale(1.3) !important; box-shadow: 0 0 12px currentColor, 0 0 0 4px #212121 !important; }
-      
-      /* First-render only animation */
+
       #ain-panel:not(.ain-ready) .ain-it {
         animation: ain-in .28s cubic-bezier(.4,0,.2,1) both !important;
       }
@@ -362,26 +564,24 @@
         to { opacity: 1; transform: translateY(0); }
       }
 
-      /* Dots */
       .ain-dot {
         position: absolute !important;
-        left: -20px !important; 
+        left: -20px !important;
         top: 5px !important;
         width: 9px !important;
         height: 9px !important;
         border-radius: 50% !important;
         z-index: 2 !important;
-        box-shadow: 0 0 0 4px #212121 !important; /* Cut out background line */
+        box-shadow: 0 0 0 4px #212121 !important;
         transition: transform .4s cubic-bezier(.2,.2,.2,.2), box-shadow .4s cubic-bezier(.4,0,.2,1) !important;
       }
       .ain-dot-u { background: ${accent} !important; }
       .ain-dot-a { background: ${accent} !important; }
 
-      /* Text */
       .ain-txt {
         font-size: 13px !important;
         line-height: 1.5 !important;
-        color: #b3b3b3 !important; /* dimmed slightly normally */
+        color: #b3b3b3 !important;
         display: -webkit-box !important;
         -webkit-line-clamp: 4 !important;
         -webkit-box-orient: vertical !important;
@@ -390,13 +590,13 @@
         transition: color .2s !important;
       }
       .ain-it.ain-active .ain-txt { color: #ffffff !important; font-weight: 500 !important; }
-      
-      .ain-em { 
-        padding-top: 140px !important; 
-        margin-left: -20px !important; 
-        color: #5c5c72 !important; 
-        font-size: 13px !important; 
-        text-align: center !important; 
+
+      .ain-em {
+        padding-top: 140px !important;
+        margin-left: -20px !important;
+        color: #5c5c72 !important;
+        font-size: 13px !important;
+        text-align: center !important;
       }
     `;
     document.head.appendChild(s);
@@ -428,15 +628,13 @@
     const ls = document.getElementById('ain-ls');
     if (!ls) return;
 
-    // Change detection: skip if data is identical
     const hash = allMsgs.map(m => `${m.index}:${m.role}:${m.tokens}`).join('|');
     if (!force && hash === lastHash) return;
     lastHash = hash;
 
-    // Top Stats
     const prompts = allMsgs.filter(m => m.role === 'user');
     const uT = prompts.reduce((s,m) => s + m.tokens, 0);
-    
+
     const statsEl = document.getElementById('ain-stats');
     if (statsEl) {
       statsEl.textContent = `${prompts.length} Prompts • ${fmtTok(uT)} Tokens`;
@@ -451,7 +649,7 @@
     }
 
     ls.innerHTML = allMsgs.map((m, i) => {
-      const r = m.role[0]; // 'u' or 'a'
+      const r = m.role[0];
       const delay = hasRenderedOnce ? '' : ` style="animation-delay:${Math.min(i*25,400)}ms"`;
       return `
         <div class="ain-it" data-i="${m.index}"${delay}>
@@ -474,21 +672,161 @@
         const msg = allMsgs.find(m => m.index === idx);
         if (!msg?.element) return;
 
-        // Toggle sidebar highlight
         ls.querySelectorAll('.ain-active').forEach(el => el.classList.remove('ain-active'));
         item.classList.add('ain-active');
-        
-        // Let it smoothly fade off after 1200ms
         setTimeout(() => item.classList.remove('ain-active'), 1200);
 
-        msg.element.scrollIntoView({ behavior:'smooth', block:'start' });
+        // For DeepSeek, msg.element is the native navigator item — always use scanScroll.
+        if (platform !== 'DeepSeek' && msg.element && msg.element.isConnected) {
+            // For Manus, use the simplebar scroller context
+            if (platform === 'Manus') {
+                const simpleBar = document.querySelector('.simplebar-content-wrapper');
+                if (simpleBar) {
+                    const elRect = msg.element.getBoundingClientRect();
+                    const sbRect = simpleBar.getBoundingClientRect();
+                    const offsetTop = elRect.top - sbRect.top + simpleBar.scrollTop;
+                    simpleBar.scrollTo({ top: offsetTop - sbRect.height / 2 + elRect.height / 2, behavior: 'smooth' });
+                    return;
+                }
+            }
+            msg.element.scrollIntoView({ behavior:'smooth', block:'start', inline:'nearest' });
+            return;
+        }
+
+        // Element is unmounted (Virtual DOM) OR DeepSeek — iteratively scroll to find it
+        let scrollers = qsa('div, main').filter(el => el.scrollHeight > el.clientHeight + 50 && el.clientHeight > 300);
+        if (platform === 'Manus') {
+            const sb = document.querySelector('.simplebar-content-wrapper');
+            if (sb) scrollers = [sb, ...scrollers.filter(s => s !== sb)];
+        } else if (platform === 'Perplexity') {
+            const sb = document.querySelector('.scrollable-container');
+            if (sb) scrollers = [sb, ...scrollers.filter(s => s !== sb)];
+        }
+        let scroller = scrollers.sort((a,b) => b.scrollHeight - a.scrollHeight)[0] || window;
+
+        const targetClean = msg.fullText.slice(0, 100).toLowerCase().replace(/\s+/g, '');
+        let direction = -1;
+
+        const activeMsg = allMsgs.filter(m => m.element && m.element.isConnected)[0];
+        if (activeMsg) direction = msg.index < activeMsg.index ? -1 : 1;
+
+        let attempts = 0;
+        function scanScroll() {
+            attempts++;
+            if (attempts > 300) return;
+
+            let foundEl = null;
+            if (platform === 'Manus') {
+                const cc = document.querySelector('.simplebar-content-wrapper');
+                if (cc) {
+                    cc.querySelectorAll('div, span, p').forEach(el => {
+                        if (foundEl) return;
+                        const text = (el.innerText || '').trim().slice(0, 100).toLowerCase().replace(/\s+/g, '');
+                        if (text && text === targetClean && el.children.length <= 5) foundEl = el;
+                    });
+                }
+            } else {
+                const containerSel = cfg.containers && cfg.containers.length ? cfg.containers.join(', ') : 'article, [class*="message"]';
+                qsa(containerSel).forEach(turn => {
+                   if (foundEl || !turn.getBoundingClientRect().height) return;
+                   let text = extractText(turn).slice(0, 100).toLowerCase().replace(/\s+/g, '');
+                   if (text && text === targetClean) foundEl = turn;
+                });
+            }
+
+            if (foundEl) {
+               foundEl.scrollIntoView({ behavior:'smooth', block:'center' });
+               if (platform !== 'DeepSeek') msg.element = foundEl;
+               return;
+            }
+
+            if (scroller === window) {
+               window.scrollBy(0, direction * 400);
+            } else {
+               scroller.scrollTop += direction * 400;
+            }
+            requestAnimationFrame(scanScroll);
+        }
+        scanScroll();
       });
     });
 
     setTimeout(() => { isRendering = false; }, 50);
   }
 
-  function refresh() { allMsgs = scrapeMessages(); render(); }
+  function refresh() {
+    const current = scrapeMessages();
+    if (!current.length) {
+       if (allMsgs.length) render();
+       return;
+    }
+
+    if (!allMsgs.length) {
+      allMsgs = current;
+      allMsgs.forEach((m, i) => m.index = i);
+      render();
+      return;
+    }
+
+    // Virtual Scrolling alignment — align current DOM messages against stored memory buffer
+    let rootCIdx = -1;
+    let rootAIdx = -1;
+    for (let c = 0; c < current.length; c++) {
+      for (let a = Math.max(0, allMsgs.length - 20); a < allMsgs.length; a++) {
+         if (current[c].fullText === allMsgs[a].fullText) { rootCIdx = c; rootAIdx = a; break; }
+      }
+      if (rootCIdx !== -1) break;
+    }
+
+    if (rootCIdx === -1) {
+      for (let c = 0; c < current.length; c++) {
+        for (let a = 0; a < allMsgs.length; a++) {
+           if (current[c].fullText === allMsgs[a].fullText) { rootCIdx = c; rootAIdx = a; break; }
+        }
+        if (rootCIdx !== -1) break;
+      }
+    }
+
+    let changed = false;
+
+    if (rootCIdx === -1) {
+      allMsgs = allMsgs.concat(current);
+      changed = true;
+    } else {
+      const beforeC = current.slice(0, rootCIdx);
+      const novelBefore = beforeC.filter(c => !allMsgs.slice(0, rootAIdx).some(a => a.fullText === c.fullText));
+      if (novelBefore.length) {
+        allMsgs.splice(rootAIdx, 0, ...novelBefore);
+        rootAIdx += novelBefore.length;
+        changed = true;
+      }
+
+      let currentAIdx = rootAIdx;
+      for (let i = rootCIdx; i < current.length; i++) {
+        const cMsg = current[i];
+        let found = -1;
+        for (let a = currentAIdx; a < allMsgs.length; a++) {
+           if (allMsgs[a].fullText === cMsg.fullText) { found = a; break; }
+        }
+        if (found !== -1) {
+           if (allMsgs[found].element !== cMsg.element) {
+              allMsgs[found].element = cMsg.element;
+              changed = true;
+           }
+           currentAIdx = found + 1;
+        } else {
+           allMsgs.splice(currentAIdx, 0, cMsg);
+           currentAIdx++;
+           changed = true;
+        }
+      }
+    }
+
+    if (changed) {
+      allMsgs.forEach((m, i) => m.index = i);
+      render();
+    }
+  }
 
   // ══════════════════════════════════════════════════════════════════════════════
   //  OPEN / CLOSE / TOGGLE
@@ -506,30 +844,28 @@
   storeGet('ain_shortcut', 'F9').then(s => currentShortcut = s);
 
   function wire() {
-    // Keyboard shortcuts
     document.addEventListener('keydown', e => {
       if (!e.key) return;
-      
+
       const parts = [];
       if (e.ctrlKey) parts.push('Ctrl');
       if (e.altKey) parts.push('Alt');
       if (e.shiftKey) parts.push('Shift');
       if (e.metaKey) parts.push('Meta');
-      
+
       let k = e.key.toUpperCase();
       if (e.key === ' ') k = 'SPACE';
       parts.push(k);
-      
+
       if (parts.join('+') === currentShortcut.toUpperCase()) { e.preventDefault(); toggle(); }
       else if (e.key === 'Escape' && isOpen) { e.preventDefault(); close(); }
     });
 
-    // Messages from popup.js
-    try { 
-      _br?.runtime?.onMessage?.addListener(msg => { 
-        if (msg.action === 'setActive' && !msg.value) close(); 
+    try {
+      _br?.runtime?.onMessage?.addListener(msg => {
+        if (msg.action === 'setActive' && !msg.value) close();
         if (msg.action === 'updateShortcut') currentShortcut = msg.value;
-      }); 
+      });
     } catch{}
   }
 
@@ -548,7 +884,6 @@
 
     storeGet('ain_open', false).then(was => { if(was) setTimeout(open, 600); });
 
-    // Auto-refresh on DOM changes (ignoring our own mutations)
     const obs = new MutationObserver((mutations) => {
       if (isRendering) return;
       const external = mutations.some(m => {
@@ -576,11 +911,16 @@
     const cur = location.pathname + location.search;
     if (cur !== lastPath) {
       lastPath = cur;
-      setTimeout(() => { 
+      // Completely wipe the memory buffer on chat change
+      allMsgs = [];
+      lastHash = '';
+      hasRenderedOnce = false;
+      
+      setTimeout(() => {
         if (!document.getElementById('ain-panel')) {
-          inject(); 
+          inject();
         } else if (isOpen) {
-          refresh(); 
+          refresh();
         }
       }, 1000);
     }
