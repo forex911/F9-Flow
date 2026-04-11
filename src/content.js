@@ -243,6 +243,49 @@
        return messages;
     }
 
+    // ─── COPILOT EXCLUSIVE: Filter out day tags and sidebar noise ───
+    // Copilot's DOM sometimes lumps day headers ('Today', 'Thursday') into message class queries.
+    if (platform === 'Copilot') {
+       const chatContainer = document.querySelector('main') || document.body;
+       const seenTexts = new Set();
+       const userBlocks = new Map(); // using Map to deduplicate by text immediately
+
+       // Walk possible user bubble containers safely
+       chatContainer.querySelectorAll('[data-content="user-message"], [class*="user-message"], [class*="UserMessage"], [class*="justify-end"]').forEach(el => {
+           if (el.closest('#ain-panel') || el.children.length > 5) return;
+           
+           const rect = el.getBoundingClientRect();
+           // Strict filter: User bubbles in Copilot are mostly right-aligned or central. Sidebar is on left.
+           if (rect.left < window.innerWidth * 0.2 || rect.width === 0) return;
+
+           let text = (el.innerText || '').trim();
+           text = text.replace(/^You[\s\n:]*/i, '').trim();
+           
+           if (text.length < 2 || text.length > 5000) return;
+           
+           // EXACT FIX: Aggressively drop strict day tags and common UI strings
+           if (/^(Today|Yesterday|Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|New chat|Library|Tasks|Discover|Imagine|Labs)$/i.test(text)) return;
+           
+           if (!seenTexts.has(text)) {
+               seenTexts.add(text);
+               userBlocks.set(text, el);
+           }
+       });
+
+       userBlocks.forEach((block, text) => {
+           messages.push({
+               index: messages.length,
+               role: 'user',
+               fullText: text,
+               element: block,
+               tokens: Math.ceil(text.length / 4)
+           });
+       });
+
+       // Force early return to strictly bypass generic scrapers
+       return messages;
+    }
+
     // ─── DEEPSEEK EXCLUSIVE: Scrape Native Navigator Directly ───
     // DeepSeek has a native outline navigator on the right side that lists all user prompts.
     // We reverse-engineer it: find the best matching container and extract prompt text from it.
@@ -685,30 +728,9 @@
 
         // For DeepSeek, msg.element is the native navigator item — always use scanScroll.
         if (platform !== 'DeepSeek' && msg.element && msg.element.isConnected) {
-            // Precise scroller for Manus
-            if (platform === 'Manus') {
-                const simpleBar = document.querySelector('.simplebar-content-wrapper');
-                if (simpleBar) {
-                    const elRect = msg.element.getBoundingClientRect();
-                    const sbRect = simpleBar.getBoundingClientRect();
-                    const offsetTop = elRect.top - sbRect.top + simpleBar.scrollTop;
-                    simpleBar.scrollTo({ top: offsetTop - sbRect.height / 2 + elRect.height / 2, behavior: 'smooth' });
-                    return;
-                }
-            }
-            // Precise scroller for Perplexity
-            if (platform === 'Perplexity') {
-                const scrollContainer = document.querySelector('.scrollable-container') || document.querySelector('main');
-                if (scrollContainer) {
-                    const elRect = msg.element.getBoundingClientRect();
-                    const scRect = scrollContainer.getBoundingClientRect();
-                    const offsetTop = elRect.top - scRect.top + scrollContainer.scrollTop;
-                    scrollContainer.scrollTo({ top: offsetTop - scRect.height / 2 + elRect.height / 2, behavior: 'smooth' });
-                    return;
-                }
-            }
-            
-            msg.element.scrollIntoView({ behavior:'smooth', block:'center' });
+            // Guarantee 100px padding from the top so sticky headers never cover the prompt
+            msg.element.style.scrollMarginTop = '100px';
+            msg.element.scrollIntoView({ behavior:'smooth', block:'start' });
             return;
         }
 
@@ -754,7 +776,8 @@
             }
 
             if (foundEl) {
-               foundEl.scrollIntoView({ behavior:'smooth', block:'center' });
+               foundEl.style.scrollMarginTop = '100px';
+               foundEl.scrollIntoView({ behavior:'smooth', block:'start' });
                if (platform !== 'DeepSeek') msg.element = foundEl;
                return;
             }
