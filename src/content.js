@@ -184,56 +184,63 @@
     const messages = [];
 
     // ─── PERPLEXITY EXCLUSIVE: Isolate from sidebar garbage ───
-    // Perplexity utility classes often falsely match the sidebar ('History', 'Discover').
-    // We isolate extraction to the .scrollable-container and target exact user bubbles.
     if (platform === 'Perplexity') {
-       const chatContainer = document.querySelector('.scrollable-container') || document.querySelector('main');
-       if (chatContainer) {
-           const seenTexts = new Set();
+       const chatContainer = document.querySelector('.scrollable-container') || document.querySelector('main') || document.body;
+       const seenTexts = new Set();
+       const userBlocks = [];
 
-           // Primary anchor: 'Edit query' buttons reliably target user prompts
-           const editBtns = chatContainer.querySelectorAll('[aria-label="Edit query"], button:has(svg)');
-           const userBlocks = [];
-           
-           editBtns.forEach(btn => {
-               if (btn.getAttribute('aria-label') === 'Edit query') {
-                   const block = btn.closest('.group') || btn.parentElement?.parentElement?.parentElement;
-                   if (block && !block.closest('#ain-panel')) userBlocks.push(block);
+       // Primary anchor: 'Edit query' buttons reliably target user prompts
+       const editBtns = chatContainer.querySelectorAll('[aria-label="Edit query"], button:has(svg)');
+       editBtns.forEach(btn => {
+           if (btn.getAttribute('aria-label') === 'Edit query') {
+               const block = btn.closest('.group') || btn.parentElement?.parentElement?.parentElement;
+               if (block && !block.closest('#ain-panel')) userBlocks.push(block);
+           }
+       });
+
+       // Fallback: If no edit buttons (e.g., shared thread), use class + strict positional checks
+       if (userBlocks.length === 0) {
+           chatContainer.querySelectorAll('div, span, p').forEach(el => {
+               if (el.closest('#ain-panel') || el.children.length > 5) return;
+               
+               const rect = el.getBoundingClientRect();
+               // STRICT FILTER: Ignore anything in the left 25% of the screen (the entire sidebar)
+               // Ignore full-width containers and zero-size elements
+               if (rect.left < window.innerWidth * 0.25 || rect.width === 0 || rect.width > window.innerWidth * 0.8) return;
+
+               const cls = (el.className || '').toString();
+               // Safe classes for user bubble, or strictly positioned on the right half
+               if (cls.includes('bg-offsetPlus') || cls.includes('break-words')) {
+                   userBlocks.push(el);
+               } else if (rect.left > window.innerWidth * 0.4 && rect.right > window.innerWidth * 0.7) {
+                   userBlocks.push(el);
                }
            });
-
-           // Fallback: Check right-aligned bubble styling (shared links don't have edit buttons)
-           if (userBlocks.length === 0) {
-               chatContainer.querySelectorAll('div, span, p').forEach(el => {
-                   if (el.closest('#ain-panel') || el.children.length > 5) return;
-                   const cls = (el.className || '').toString();
-                   if (cls.includes('justify-end') || cls.includes('ml-auto') || cls.includes('bg-offsetPlus')) {
-                       userBlocks.push(el);
-                   }
-               });
-           }
-
-           userBlocks.forEach(block => {
-               let text = (block.innerText || '').trim();
-               // Strip out ui strings that leak in
-               text = text.replace(/Edit query/gi, '').replace(/Copilot/gi, '').trim();
-               if (text.length < 2 || seenTexts.has(text)) return;
-               
-               // Avoid sidebar elements just in case they slipped through
-               if (['History', 'Discover', 'New thread', 'Sign up'].includes(text)) return;
-
-               seenTexts.add(text);
-               messages.push({
-                   index: messages.length,
-                   role: 'user',
-                   fullText: text,
-                   element: block,
-                   tokens: Math.ceil(text.length / 4)
-               });
-           });
-
-           if (messages.length > 0) return messages;
        }
+
+       userBlocks.forEach(block => {
+           let text = (block.innerText || '').trim();
+           // Strip out ui strings that leak in
+           text = text.replace(/Edit query/gi, '').replace(/Copilot/gi, '').trim();
+           
+           // Filter tiny noise or duplicate texts
+           if (text.length < 2 || text.length > 5000 || seenTexts.has(text)) return;
+           
+           // Hardcode block against common sidebar/nav artifacts just in case
+           if (/^(History|Discover|New thread|Sign in|Sign up|Library|Spaces|Finance|Health|Answer|Links)$/i.test(text)) return;
+
+           seenTexts.add(text);
+           messages.push({
+               index: messages.length,
+               role: 'user',
+               fullText: text,
+               element: block,
+               tokens: Math.ceil(text.length / 4)
+           });
+       });
+
+       // Force early return: Perplexity logic NEVER falls through to generic logic.
+       return messages;
     }
 
     // ─── DEEPSEEK EXCLUSIVE: Scrape Native Navigator Directly ───
@@ -678,7 +685,7 @@
 
         // For DeepSeek, msg.element is the native navigator item — always use scanScroll.
         if (platform !== 'DeepSeek' && msg.element && msg.element.isConnected) {
-            // For Manus, use the simplebar scroller context
+            // Precise scroller for Manus
             if (platform === 'Manus') {
                 const simpleBar = document.querySelector('.simplebar-content-wrapper');
                 if (simpleBar) {
@@ -689,7 +696,19 @@
                     return;
                 }
             }
-            msg.element.scrollIntoView({ behavior:'smooth', block:'start', inline:'nearest' });
+            // Precise scroller for Perplexity
+            if (platform === 'Perplexity') {
+                const scrollContainer = document.querySelector('.scrollable-container') || document.querySelector('main');
+                if (scrollContainer) {
+                    const elRect = msg.element.getBoundingClientRect();
+                    const scRect = scrollContainer.getBoundingClientRect();
+                    const offsetTop = elRect.top - scRect.top + scrollContainer.scrollTop;
+                    scrollContainer.scrollTo({ top: offsetTop - scRect.height / 2 + elRect.height / 2, behavior: 'smooth' });
+                    return;
+                }
+            }
+            
+            msg.element.scrollIntoView({ behavior:'smooth', block:'center' });
             return;
         }
 
