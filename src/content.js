@@ -653,6 +653,29 @@
         font-size: 13px !important;
         text-align: center !important;
       }
+      
+      .ain-upd {
+        display: none !important;
+        background: rgba(199, 0, 57, 0.2) !important;
+        border: 1px solid #900C3F !important;
+        color: #fff !important;
+        padding: 10px 12px !important;
+        font-size: 11px !important;
+        margin: 12px 12px 0 !important;
+        border-radius: 8px !important;
+        flex-shrink: 0 !important;
+        position: relative !important;
+      }
+      .ain-upd.ain-show { display: block !important; }
+      .ain-upd-txt { font-weight: 600 !important; margin-bottom: 8px !important; color: #F8DE22 !important; }
+      .ain-upd-btn { 
+          background: #F94C10 !important; color: #fff !important; padding:4px 8px !important; border-radius:4px !important; 
+          cursor:pointer !important; display:inline-block !important; font-weight:600 !important; transition:0.2s !important; 
+          border: 1px solid #F94C10 !important;
+      }
+      .ain-upd-btn:hover { background: #F8DE22 !important; color: #900C3F !important; border-color: #F8DE22 !important; }
+      .ain-upd-x { position:absolute !important; top:8px !important; right:8px !important; cursor:pointer !important; color:#C70039 !important; font-weight: 700 !important; }
+      .ain-upd-x:hover { color:#F94C10 !important; }
     `;
     document.head.appendChild(s);
   }
@@ -665,6 +688,11 @@
     const d = document.createElement('div');
     d.id = 'ain-panel';
     d.innerHTML = `
+      <div id="ain-upd" class="ain-upd">
+         <div class="ain-upd-x" id="ain-upd-x">✕</div>
+         <div class="ain-upd-txt" id="ain-upd-txt">Update Available</div>
+         <div class="ain-upd-btn" id="ain-upd-btn">View Release</div>
+      </div>
       <div class="ain-hdr-stats" id="ain-stats">0 Prompts • 0 Tokens</div>
       <div class="ain-sc" id="ain-sc">
         <div class="ain-ls" id="ain-ls">
@@ -672,6 +700,23 @@
         </div>
       </div>
     `;
+    
+    // Wire up update actions
+    const btn = d.querySelector('#ain-upd-btn');
+    const x = d.querySelector('#ain-upd-x');
+    const upd = d.querySelector('#ain-upd');
+    
+    btn.addEventListener('click', () => {
+        const url = upd.dataset.url;
+        if (url) window.open(url, '_blank');
+    });
+    
+    x.addEventListener('click', () => {
+        upd.classList.remove('ain-show');
+        const ver = upd.dataset.ver;
+        if (ver) storeSet('ain_dismissed_update', { ver, time: Date.now() });
+    });
+    
     return d;
   }
 
@@ -881,6 +926,60 @@
   }
 
   // ══════════════════════════════════════════════════════════════════════════════
+  //  UPDATES
+  // ══════════════════════════════════════════════════════════════════════════════
+
+  async function checkForUpdates() {
+      try {
+          const now = Date.now();
+          const lastCheck = await storeGet('ain_last_update_check', 0);
+          
+          // Debounce check against GitHub API (limit to once every 2 hours)
+          if (now - lastCheck < 7200000) {
+              const pendingVer = await storeGet('ain_pending_update_ver', null);
+              const pendingUrl = await storeGet('ain_pending_update_url', null);
+              if (pendingVer && pendingUrl) showUpdateBanner(pendingVer, pendingUrl);
+              return;
+          }
+          await storeSet('ain_last_update_check', now);
+
+          const res = await fetch('https://api.github.com/repos/forex911/F9-Flow/releases/latest');
+          if (!res.ok) return;
+          const data = await res.json();
+          
+          const latestVersion = data.tag_name.replace(/^v/, '');
+          let currentVersion = '1.0.0';
+          try { currentVersion = _br?.runtime?.getManifest()?.version || '1.0.0'; } catch(e){}
+          
+          if (latestVersion !== currentVersion) {
+              await storeSet('ain_pending_update_ver', latestVersion);
+              await storeSet('ain_pending_update_url', data.html_url);
+              showUpdateBanner(latestVersion, data.html_url);
+          } else {
+              await storeSet('ain_pending_update_ver', null);
+              await storeSet('ain_pending_update_url', null);
+          }
+      } catch (err) { /* silent fail for safety */ }
+  }
+
+  async function showUpdateBanner(version, url) {
+      const dismissed = await storeGet('ain_dismissed_update', null);
+      // Re-prompt after 48 hours (172800000 ms) if they previously dismissed this version
+      if (dismissed && dismissed.ver === version) {
+          if (Date.now() - dismissed.time < 172800000) return;
+      }
+
+      const upd = document.getElementById('ain-upd');
+      const txt = document.getElementById('ain-upd-txt');
+      if (!upd || !txt) return;
+
+      txt.textContent = `Update v${version} Available`;
+      upd.dataset.url = url;
+      upd.dataset.ver = version;
+      upd.classList.add('ain-show');
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════════
   //  INIT
   // ══════════════════════════════════════════════════════════════════════════════
 
@@ -894,6 +993,7 @@
     wire();
 
     storeGet('ain_open', false).then(was => { if(was) setTimeout(open, 600); });
+    checkForUpdates();
 
     const obs = new MutationObserver((mutations) => {
       if (isRendering) return;

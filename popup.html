@@ -10,10 +10,19 @@
 <body>
   <div class="popup" id="popup">
 
+    <!-- Update Alert -->
+    <div id="pop-upd" style="display: none; padding: 14px 20px; background: linear-gradient(90deg, #900C3F, #C70039); border-bottom: 2px solid #F94C10; justify-content: space-between; align-items: center; cursor: pointer; transition: filter 0.2s;" onmouseover="this.style.filter='brightness(1.1)';" onmouseout="this.style.filter='none';">
+      <div>
+        <div style="font-size: 11px; font-weight: 700; color: #F8DE22; letter-spacing: 0.5px; margin-bottom: 2px;">UPDATE AVAILABLE</div>
+        <div id="pop-upd-txt" style="font-size: 13px; font-weight: 600; color: #fff;">vX.X.X is ready!</div>
+      </div>
+      <div style="background: rgba(255,255,255,0.2); padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 700; color: #fff;">Get It</div>
+    </div>
+
     <!-- Header -->
     <div style="padding: 20px 20px 10px;">
       <div style="font-size: 18px; font-weight: 600; color: #F94C10; letter-spacing: -0.3px;">F9 Flow</div>
-      <div style="font-size: 13px; color: #900C3F; margin-top: 2px;">AI Command Layer</div>
+      <div style="font-size: 13px; color: #C70039; margin-top: 2px; font-weight: 500;">AI Command Layer</div>
     </div>
 
     <!-- Main Action -->

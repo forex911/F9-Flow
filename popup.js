@@ -42,10 +42,12 @@
       btn.style.background = 'rgba(255,255,255,0.05)';
       btn.style.color = '#fff';
       label.textContent = 'Disable F9 Flow';
+      btn.style.border = '1px solid rgba(255,255,255,0.1)';
     } else {
-      btn.style.background = '#e74c3c';
+      btn.style.background = '#C70039';
       btn.style.color = '#fff';
       label.textContent = 'Enable F9 Flow';
+      btn.style.border = '1px solid #900C3F';
     }
   }
 
@@ -107,6 +109,18 @@
 
     $('action-btn').addEventListener('click', toggleActive);
     $('change-shortcut-btn').addEventListener('click', startShortcutCapture);
+    
+    // Popup Update Notification UI
+    const pendingVer = await storage.get('ain_pending_update_ver', null);
+    const pendingUrl = await storage.get('ain_pending_update_url', null);
+    if (pendingVer && pendingUrl) {
+       const upd = $('pop-upd');
+       if (upd) {
+           upd.style.display = 'flex';
+           $('pop-upd-txt').textContent = `v${pendingVer} is ready!`;
+           upd.addEventListener('click', () => { window.open(pendingUrl, '_blank'); });
+       }
+    }
   }
 
   document.addEventListener('DOMContentLoaded', init);
