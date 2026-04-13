@@ -31,15 +31,19 @@
   --text-muted:      #5c5c72;
   --text-dim:        #3e3e50;
 
-  /* ── Accents ── */
-  --green:         #1abc9c;
-  --green-hover:   #16a085;
-  --green-dim:     rgba(26, 188, 156, 0.12);
-  --green-glow:    rgba(26, 188, 156, 0.25);
-  --orange:        #f0a030;
-  --orange-dim:    rgba(240, 160, 48, 0.12);
-  --red:           #e74c3c;
-  --red-dim:       rgba(231, 76, 60, 0.12);
+  /* ── NEW PALETTE accents ── */
+  --green:         #F94C10;
+  --green-hover:   #C70039;
+  --green-dim:     rgba(199, 0, 57, 0.12);
+  --green-glow:    rgba(249, 76, 16, 0.28);
+
+  /* Active button gradient */
+  --accent-gradient: linear-gradient(135deg, #900C3F 0%, #C70039 40%, #F94C10 80%, #F8DE22 100%);
+
+  --orange:        #F8DE22;
+  --orange-dim:    rgba(248, 222, 34, 0.12);
+  --red:           #900C3F;
+  --red-dim:       rgba(144, 12, 63, 0.14);
   --blue:          #60a5fa;
 
   /* ── Dimensions ── */
@@ -118,12 +122,12 @@ body::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.14); }
   width: 38px;
   height: 38px;
   border-radius: var(--radius-md);
-  background: linear-gradient(135deg, var(--green), var(--green-hover));
+  background: var(--accent-gradient);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 0 16px var(--green-dim), 0 2px 8px rgba(0,0,0,0.3);
+  box-shadow: 0 0 16px rgba(199, 0, 57, 0.2), 0 2px 8px rgba(0,0,0,0.3);
   position: relative;
 }
 
@@ -181,23 +185,23 @@ body::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.14); }
   opacity: 1;
 }
 
-/* Active state (green - deactivate) */
+/* Active state (gradient - deactivate) */
 .action-btn.active {
-  background: var(--green);
+  background: var(--accent-gradient);
   color: white;
   box-shadow:
-    0 0 0 1px rgba(26, 188, 156, 0.3),
-    0 4px 20px var(--green-dim),
-    0 0 40px rgba(26, 188, 156, 0.08);
+    0 0 0 1px rgba(199, 0, 57, 0.3),
+    0 4px 20px rgba(199, 0, 57, 0.15),
+    0 0 40px rgba(144, 12, 63, 0.08);
 }
 
 .action-btn.active:hover {
-  background: var(--green-hover);
+  filter: brightness(1.1);
   transform: scale(1.015);
   box-shadow:
-    0 0 0 1px rgba(26, 188, 156, 0.4),
-    0 6px 28px rgba(26, 188, 156, 0.2),
-    0 0 50px rgba(26, 188, 156, 0.1);
+    0 0 0 1px rgba(199, 0, 57, 0.4),
+    0 6px 28px rgba(199, 0, 57, 0.22),
+    0 0 50px rgba(144, 12, 63, 0.1);
 }
 
 .action-btn.active:active {
@@ -281,9 +285,9 @@ body::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.14); }
   margin-bottom: 12px;
 }
 
-.card-label.green   { color: var(--green); }
-.card-label.orange  { color: var(--orange); }
-.card-label.red     { color: var(--red); }
+.card-label.green   { color: #F94C10; }
+.card-label.orange  { color: #F8DE22; }
+.card-label.red     { color: #C70039; }
 .card-label.muted   { color: var(--text-muted); }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -339,15 +343,15 @@ body::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.14); }
 }
 
 .change-btn:hover {
-  border-color: var(--green);
-  color: var(--green);
-  background: var(--green-dim);
+  border-color: #F94C10;
+  color: #F94C10;
+  background: rgba(249, 76, 16, 0.1);
 }
 
 .change-btn.recording {
-  border-color: var(--green);
-  color: var(--green);
-  background: var(--green-dim);
+  border-color: #C70039;
+  color: #F94C10;
+  background: rgba(199, 0, 57, 0.1);
   animation: blink-record 0.7s ease-in-out infinite;
 }
 
@@ -422,9 +426,9 @@ body::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.14); }
 }
 
 .toggle-input:checked + .toggle-slider {
-  background: var(--green);
-  border-color: var(--green);
-  box-shadow: 0 0 12px var(--green-dim);
+  background: var(--accent-gradient);
+  border-color: #C70039;
+  box-shadow: 0 0 12px rgba(199, 0, 57, 0.2);
 }
 
 .toggle-input:checked + .toggle-slider::after {
@@ -453,14 +457,14 @@ body::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.14); }
 .delete-btn.enabled {
   opacity: 1;
   cursor: pointer;
-  border-color: var(--red);
-  color: var(--red);
-  background: var(--red-dim);
+  border-color: #900C3F;
+  color: #C70039;
+  background: rgba(144, 12, 63, 0.12);
 }
 
 .delete-btn.enabled:hover {
-  background: rgba(231, 76, 60, 0.18);
-  box-shadow: 0 0 16px var(--red-dim);
+  background: rgba(144, 12, 63, 0.2);
+  box-shadow: 0 0 16px rgba(144, 12, 63, 0.2);
   transform: scale(1.015);
 }
 
@@ -519,8 +523,8 @@ body::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.14); }
 }
 
 .status-dot.online {
-  background: var(--green);
-  box-shadow: 0 0 6px var(--green-glow);
+  background: #F94C10;
+  box-shadow: 0 0 6px rgba(249, 76, 16, 0.5);
   animation: status-glow 2.5s ease-in-out infinite;
 }
 
@@ -530,12 +534,12 @@ body::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.14); }
 
 @keyframes status-glow {
   0%, 100% { opacity: 1; }
-  50%      { opacity: 0.5; }
+  50%      { opacity: 0.45; }
 }
 
 .status-platform {
   font-weight: 700;
-  color: var(--green);
+  color: #F94C10;
 }
 
 /* ═══════════════════════════════════════════════════════════════

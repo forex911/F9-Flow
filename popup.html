@@ -12,32 +12,34 @@
 
     <!-- Header -->
     <div style="padding: 20px 20px 10px;">
-      <div style="font-size: 18px; font-weight: 600; color: #fff; letter-spacing: -0.3px;">F9 Flow</div>
-      <div style="font-size: 13px; color: #888; margin-top: 2px;">AI Command Layer</div>
+      <div style="font-size: 18px; font-weight: 600; color: #F94C10; letter-spacing: -0.3px;">F9 Flow</div>
+      <div style="font-size: 13px; color: #900C3F; margin-top: 2px;">AI Command Layer</div>
     </div>
 
     <!-- Main Action -->
     <div style="padding: 10px 20px 20px;">
       <div style="font-size: 13px; color: #b3b3b3; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
-        <span style="color: #00d28f; font-size: 10px;">●</span> Press F9 to Activate
+        <span style="color: #F94C10; font-size: 10px;">●</span> Press F9 to Activate
       </div>
       <button class="action-btn active" id="action-btn" type="button" style="width: 100%; justify-content: center;">
         <span id="action-label" style="font-weight: 500;">Disable F9 Flow</span>
       </button>
     </div>
 
-    <div style="height: 1px; background: #333; margin: 0 20px;"></div>
+    <div style="height: 1px; background: #222; margin: 0 20px;"></div>
 
     <!-- Trigger Key -->
     <div style="padding: 16px 20px; display: flex; justify-content: space-between; align-items: center;">
       <div>
         <div style="font-size: 11px; font-weight: 600; color: #888; letter-spacing: 0.5px; margin-bottom: 4px;">TRIGGER KEY</div>
-        <div id="shortcut-display" style="color: #00d28f; font-size: 14px; font-weight: 600; background: rgba(0,210,143,0.1); padding: 4px 10px; border-radius: 8px; display: inline-block;">F9</div>
+        <div id="shortcut-display" style="color: #F94C10; font-size: 14px; font-weight: 600; background: rgba(199,0,57,0.1); border: 1px solid rgba(249,76,16,0.2); padding: 4px 10px; border-radius: 8px; display: inline-block;">F9</div>
       </div>
-      <button id="change-shortcut-btn" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; transition: background 0.2s;">Change</button>
+      <button id="change-shortcut-btn" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s;"
+        onmouseover="this.style.borderColor='rgba(249,76,16,0.4)'; this.style.color='#F94C10';"
+        onmouseout="this.style.borderColor='rgba(255,255,255,0.1)'; this.style.color='#fff';">Change</button>
     </div>
 
-    <div style="height: 1px; background: #333; margin: 0 20px;"></div>
+    <div style="height: 1px; background: #222; margin: 0 20px;"></div>
 
     <!-- System Info -->
     <div style="padding: 16px 20px;">
@@ -45,11 +47,14 @@
       <div style="color: #888; font-size: 13px;">Token estimates may vary</div>
     </div>
 
-    <div style="height: 1px; background: #333; margin: 0 20px;"></div>
+    <div style="height: 1px; background: #222; margin: 0 20px;"></div>
 
     <!-- Footer -->
     <div style="padding: 16px 20px;">
-      <a href="https://github.com/forex911/F9-Flow" target="_blank" style="text-decoration: none; color: #fff; font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 8px;">
+      <a href="https://github.com/forex911/F9-Flow" target="_blank"
+        style="text-decoration: none; font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 8px;
+               background: linear-gradient(90deg, #900C3F, #C70039, #F94C10, #F8DE22);
+               -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
         ⭐ Star on GitHub
       </a>
     </div>

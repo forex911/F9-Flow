@@ -183,6 +183,30 @@
   function scrapeMessages() {
     const messages = [];
 
+    function addMessage(role, text, element) {
+        if (!element) return;
+        element.dataset.ainavProcessed = 'true';
+        
+        let hash = 0;
+        for (let i = 0; i < text.length; i++) {
+            hash = (hash << 5) - hash + text.charCodeAt(i);
+            hash |= 0;
+        }
+        const msgId = hash.toString(36) + '-' + text.length;
+        
+        if (processedMessages.has(msgId)) {
+            const existing = allMsgs.find(m => m.id === msgId);
+            if (existing && (!existing.element || !existing.element.isConnected)) {
+                existing.element = element;
+            }
+            return;
+        }
+        processedMessages.add(msgId);
+        
+        const tokens = Math.ceil(text.length / 4);
+        messages.push({ role, fullText: text, element, tokens, id: msgId });
+    }
+
     // ─── PERPLEXITY EXCLUSIVE: Isolate from sidebar garbage ───
     if (platform === 'Perplexity') {
        const chatContainer = document.querySelector('.scrollable-container') || document.querySelector('main') || document.body;
@@ -194,14 +218,14 @@
        editBtns.forEach(btn => {
            if (btn.getAttribute('aria-label') === 'Edit query') {
                const block = btn.closest('.group') || btn.parentElement?.parentElement?.parentElement;
-               if (block && !block.closest('#ain-panel')) userBlocks.push(block);
+               if (block && !block.dataset.ainavProcessed && !block.closest('#ain-panel')) userBlocks.push(block);
            }
        });
 
        // Fallback: If no edit buttons (e.g., shared thread), use class + strict positional checks
        if (userBlocks.length === 0) {
            chatContainer.querySelectorAll('div, span, p').forEach(el => {
-               if (el.closest('#ain-panel') || el.children.length > 5) return;
+               if (el.dataset.ainavProcessed || el.closest('#ain-panel') || el.children.length > 5) return;
                
                const rect = el.getBoundingClientRect();
                // STRICT FILTER: Ignore anything in the left 25% of the screen (the entire sidebar)
@@ -219,6 +243,7 @@
        }
 
        userBlocks.forEach(block => {
+           if (block.dataset.ainavProcessed) return;
            let text = (block.innerText || '').trim();
            // Strip out ui strings that leak in
            text = text.replace(/Edit query/gi, '').replace(/Copilot/gi, '').trim();
@@ -230,13 +255,7 @@
            if (/^(History|Discover|New thread|Sign in|Sign up|Library|Spaces|Finance|Health|Answer|Links)$/i.test(text)) return;
 
            seenTexts.add(text);
-           messages.push({
-               index: messages.length,
-               role: 'user',
-               fullText: text,
-               element: block,
-               tokens: Math.ceil(text.length / 4)
-           });
+           addMessage('user', text, block);
        });
 
        // Force early return: Perplexity logic NEVER falls through to generic logic.
@@ -252,7 +271,7 @@
 
        // Walk possible user bubble containers safely
        chatContainer.querySelectorAll('[data-content="user-message"], [class*="user-message"], [class*="UserMessage"], [class*="justify-end"]').forEach(el => {
-           if (el.closest('#ain-panel') || el.children.length > 5) return;
+           if (el.dataset.ainavProcessed || el.closest('#ain-panel') || el.children.length > 5) return;
            
            const rect = el.getBoundingClientRect();
            // Strict filter: User bubbles in Copilot are mostly right-aligned or central. Sidebar is on left.
@@ -273,13 +292,7 @@
        });
 
        userBlocks.forEach((block, text) => {
-           messages.push({
-               index: messages.length,
-               role: 'user',
-               fullText: text,
-               element: block,
-               tokens: Math.ceil(text.length / 4)
-           });
+           addMessage('user', text, block);
        });
 
        // Force early return to strictly bypass generic scrapers
@@ -294,7 +307,7 @@
        let bestScore = 0;
 
        qsa('div').forEach(el => {
-           if (el.closest('#ain-panel') || el.id === 'ain-panel') return;
+           if (el.dataset.ainavProcessed || el.closest('#ain-panel') || el.id === 'ain-panel') return;
            if (el.querySelector('.ds-markdown, .ds-markdown--block, .markdown, code, pre')) return;
            if (el.children.length < 3) return;
 
@@ -322,13 +335,7 @@
                if (!text || text.length < 1) return;
                text = text.replace(/\s*[-–—]+\s*$/, '').trim();
                if (text.length < 1) return;
-               messages.push({
-                   index: messages.length,
-                   role: 'user',
-                   fullText: text,
-                   element: child,
-                   tokens: Math.ceil(text.length / 4)
-               });
+               addMessage('user', text, child);
            });
 
            if (messages.length > 0) return messages;
@@ -348,7 +355,7 @@
            const seenTexts = new Set();
 
            allBlocks.forEach(el => {
-               if (el.closest('#ain-panel')) return;
+               if (el.dataset.ainavProcessed || el.closest('#ain-panel')) return;
                if (el.children.length > 5) return;
 
                const text = (el.innerText || '').trim();
@@ -386,13 +393,7 @@
                if (parentText.startsWith('manus')) return;
 
                seenTexts.add(text);
-               messages.push({
-                   index: messages.length,
-                   role: 'user',
-                   fullText: text,
-                   element: el,
-                   tokens: Math.ceil(text.length / 4)
-               });
+               addMessage('user', text, el);
            });
 
            if (messages.length > 0) return messages;
@@ -405,7 +406,7 @@
 
     // Step 1: Find message containers
     for (const sel of cfg.containers) {
-      const found = qsa(sel);
+      const found = qsa(sel).filter(el => !el.dataset.ainavProcessed);
       if (found.length > 0) {
         if (turns.length === 0) {
           turns = found;
@@ -422,7 +423,9 @@
       const seen = new Set();
       [...cfg.userMatch, ...cfg.aiMatch].forEach(sel => {
         qsa(sel).forEach(el => {
+          if (el.dataset.ainavProcessed) return;
           const container = el.closest('article, section, [class*="message"], [class*="Message"], [class*="turn"], .group, [class*="conversation"]') || el.parentElement || el;
+          if (container.dataset.ainavProcessed) return;
           if (!seen.has(container)) { seen.add(container); turns.push(container); }
         });
       });
@@ -435,7 +438,7 @@
         const parent = aiElem.parentElement;
         if (parent) {
           Array.from(parent.children).forEach(child => {
-            if (!turns.includes(child) && (child.innerText || '').trim().length > 2) {
+            if (!child.dataset.ainavProcessed && !turns.includes(child) && (child.innerText || '').trim().length > 2) {
               turns.push(child);
             }
           });
@@ -447,6 +450,7 @@
     if (!turns.length) {
       for (const sel of ['article', 'section', '[class*="message"]', '[class*="turn"]', '[class*="conversation"]', '[class*="bubble"]', '[class*="chat"]']) {
         const found = qsa(sel).filter(el => {
+          if (el.dataset.ainavProcessed) return false;
           const text = (el.innerText || '').trim();
           return (text.length > 10 && text.length < 50000) || el.querySelector('img');
         });
@@ -501,8 +505,7 @@
       const role = isUser ? 'user' : isAI ? 'assistant' : null;
       if (role !== 'user') return; // STRICTLY drop AI messages
 
-      const tokens = Math.ceil(text.length / 4);
-      messages.push({ index: messages.length, role, fullText: text, element: turn, tokens });
+      addMessage(role, text, turn);
     });
 
     return messages;
@@ -519,6 +522,7 @@
   let isRendering = false;
   let lastHash = '';
   let hasRenderedOnce = false;
+  let processedMessages = new Set();
 
   // ══════════════════════════════════════════════════════════════════════════════
   //  STYLES
@@ -798,74 +802,11 @@
 
   function refresh() {
     const current = scrapeMessages();
-    if (!current.length) {
-       if (allMsgs.length) render();
-       return;
-    }
-
-    if (!allMsgs.length) {
-      allMsgs = current;
+    if (current.length > 0) {
+      allMsgs = allMsgs.concat(current);
       allMsgs.forEach((m, i) => m.index = i);
       render();
-      return;
-    }
-
-    // Virtual Scrolling alignment — align current DOM messages against stored memory buffer
-    let rootCIdx = -1;
-    let rootAIdx = -1;
-    for (let c = 0; c < current.length; c++) {
-      for (let a = Math.max(0, allMsgs.length - 20); a < allMsgs.length; a++) {
-         if (current[c].fullText === allMsgs[a].fullText) { rootCIdx = c; rootAIdx = a; break; }
-      }
-      if (rootCIdx !== -1) break;
-    }
-
-    if (rootCIdx === -1) {
-      for (let c = 0; c < current.length; c++) {
-        for (let a = 0; a < allMsgs.length; a++) {
-           if (current[c].fullText === allMsgs[a].fullText) { rootCIdx = c; rootAIdx = a; break; }
-        }
-        if (rootCIdx !== -1) break;
-      }
-    }
-
-    let changed = false;
-
-    if (rootCIdx === -1) {
-      allMsgs = allMsgs.concat(current);
-      changed = true;
-    } else {
-      const beforeC = current.slice(0, rootCIdx);
-      const novelBefore = beforeC.filter(c => !allMsgs.slice(0, rootAIdx).some(a => a.fullText === c.fullText));
-      if (novelBefore.length) {
-        allMsgs.splice(rootAIdx, 0, ...novelBefore);
-        rootAIdx += novelBefore.length;
-        changed = true;
-      }
-
-      let currentAIdx = rootAIdx;
-      for (let i = rootCIdx; i < current.length; i++) {
-        const cMsg = current[i];
-        let found = -1;
-        for (let a = currentAIdx; a < allMsgs.length; a++) {
-           if (allMsgs[a].fullText === cMsg.fullText) { found = a; break; }
-        }
-        if (found !== -1) {
-           if (allMsgs[found].element !== cMsg.element) {
-              allMsgs[found].element = cMsg.element;
-              changed = true;
-           }
-           currentAIdx = found + 1;
-        } else {
-           allMsgs.splice(currentAIdx, 0, cMsg);
-           currentAIdx++;
-           changed = true;
-        }
-      }
-    }
-
-    if (changed) {
-      allMsgs.forEach((m, i) => m.index = i);
+    } else if (allMsgs.length > 0) {
       render();
     }
   }
@@ -957,6 +898,7 @@
       allMsgs = [];
       lastHash = '';
       hasRenderedOnce = false;
+      processedMessages.clear();
       
       setTimeout(() => {
         if (!document.getElementById('ain-panel')) {
