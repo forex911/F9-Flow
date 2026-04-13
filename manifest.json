@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "F9 Flow",
-  "version": "1.0.1",
+  "version": "2.0.3",
   "description": "AI Command Layer — Navigate conversations on ChatGPT, Claude, Perplexity, Gemini, Grok, Copilot, Mistral, and more.",
   "permissions": ["storage", "activeTab", "scripting"],
   "host_permissions": [
