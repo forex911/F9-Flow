@@ -523,6 +523,7 @@
   let lastHash = '';
   let hasRenderedOnce = false;
   let processedMessages = new Set();
+  let autoScrollEnabled = true;
 
   // ══════════════════════════════════════════════════════════════════════════════
   //  STYLES
@@ -678,9 +679,22 @@
   //  RENDER
   // ══════════════════════════════════════════════════════════════════════════════
 
-  function render(force) {
+  function render(force, newItemsAdded) {
     const ls = document.getElementById('ain-ls');
+    const sc = document.getElementById('ain-sc');
     if (!ls) return;
+
+    // Capture precise scroll state before DOM destruction
+    let oldScrollTop = 0;
+    let wasAtBottom = false;
+    if (sc) {
+        oldScrollTop = sc.scrollTop;
+        if (sc.scrollHeight > sc.clientHeight) {
+            wasAtBottom = (sc.scrollTop + sc.clientHeight) >= (sc.scrollHeight - 150);
+        } else {
+            wasAtBottom = true;
+        }
+    }
 
     const hash = allMsgs.map(m => `${m.index}:${m.role}:${m.tokens}`).join('|');
     if (!force && hash === lastHash) return;
@@ -711,6 +725,19 @@
           <div class="ain-txt">${esc(m.fullText)}</div>
         </div>`;
     }).join('');
+
+    // Restore scroll state immediately to prevent visual wipe-out
+    if (sc) {
+        if (autoScrollEnabled && newItemsAdded) {
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    sc.scrollTo({ top: sc.scrollHeight, behavior: 'smooth' });
+                }, 50);
+            });
+        } else {
+            sc.scrollTop = oldScrollTop;
+        }
+    }
 
     if (!hasRenderedOnce) {
       hasRenderedOnce = true;
@@ -802,10 +829,11 @@
 
   function refresh() {
     const current = scrapeMessages();
+    
     if (current.length > 0) {
       allMsgs = allMsgs.concat(current);
       allMsgs.forEach((m, i) => m.index = i);
-      render();
+      render(false, true); // explicitly notify render that a new prompt arrived
     } else if (allMsgs.length > 0) {
       render();
     }
